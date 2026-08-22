@@ -1,5 +1,6 @@
 import os
 import time
+import gc
 from flask import Flask, request, jsonify, send_from_directory
 from gtts import gTTS
 from moviepy.editor import ColorClip, TextClip, AudioFileClip, CompositeVideoClip
@@ -20,7 +21,7 @@ def render():
         video_name = f"reel_{timestamp}.mp4"
         video_path = os.path.join(OUTPUT_DIR, video_name)
 
-        # 1. Generate Voiceover Audio
+        # 1. Generate Voiceover
         tts = gTTS(text=script, lang="en")
         tts.save(audio_path)
 
@@ -28,33 +29,37 @@ def render():
         audio = AudioFileClip(audio_path)
         duration = audio.duration
 
-        # Dark background (1080x1920 portrait)
-        bg = ColorClip(size=(1080, 1920), color=(20, 20, 30), duration=duration)
+        # Use lower resolution canvas (720x1280) to save RAM
+        bg = ColorClip(size=(720, 1280), color=(20, 20, 30), duration=duration)
         
-        # Centered Text Overlay with explicit system font
         txt = TextClip(
             word_tip, 
-            fontsize=45, 
+            fontsize=36, 
             color='white', 
             font='Liberation-Sans',
             method='caption', 
-            size=(900, None)
+            size=(600, None)
         ).set_duration(duration).set_pos('center')
 
         # Combine audio & visual layers
         video = CompositeVideoClip([bg, txt]).set_audio(audio)
+        
+        # 3. Write output file with memory limits
         video.write_videofile(
             video_path, 
-            fps=24, 
+            fps=20,                       # Reduced FPS saves RAM
             codec="libx264", 
             audio_codec="aac", 
-            temp_audiofile=f"/tmp/temp_audio_{timestamp}.m4a", 
+            preset="ultrafast",           # Reduces CPU and RAM spikes
+            threads=1,                    # Limits thread count to prevent memory leaks
+            temp_audiofile=f"/tmp/temp_{timestamp}.m4a", 
             remove_temp=True
         )
 
-        # Close clips to free RAM resources on free tier
+        # Clean up memory explicitly
         audio.close()
         video.close()
+        gc.collect()
 
         host_url = request.host_url.rstrip('/')
         return jsonify({"video_url": f"{host_url}/download/{video_name}"})
