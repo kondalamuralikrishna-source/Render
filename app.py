@@ -29,7 +29,6 @@ def render():
         audio = AudioFileClip(audio_path)
         duration = audio.duration
 
-        # Use lower resolution canvas (720x1280) to save RAM
         bg = ColorClip(size=(720, 1280), color=(20, 20, 30), duration=duration)
         
         txt = TextClip(
@@ -47,28 +46,29 @@ def render():
         # 3. Write output file with memory limits
         video.write_videofile(
             video_path, 
-            fps=20,                       # Reduced FPS saves RAM
+            fps=20, 
             codec="libx264", 
             audio_codec="aac", 
-            preset="ultrafast",           # Reduces CPU and RAM spikes
-            threads=1,                    # Limits thread count to prevent memory leaks
+            preset="ultrafast", 
+            threads=1, 
             temp_audiofile=f"/tmp/temp_{timestamp}.m4a", 
             remove_temp=True
         )
 
-        # Clean up memory explicitly
+        # Clean up memory
         audio.close()
         video.close()
         gc.collect()
 
         host_url = request.host_url.rstrip('/')
-        return jsonify({"video_url": f"{host_url}/download/{video_name}"})
+        return jsonify({
+            "video_url": f"{host_url}/download/{video_name}",
+            "script": script
+        })
 
     except Exception as e:
         print(f"Error during render: {str(e)}")
-        return jsonify({
-    "video_url": f"{host_url}/download/{video_name}",
-    "script": script
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/download/<filename>")
 def download(filename):
