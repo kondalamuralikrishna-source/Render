@@ -66,7 +66,9 @@ def render():
 
     except Exception as e:
         print(f"Error during render: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        return jsonify({
+    "video_url": f"{host_url}/download/{video_name}",
+    "script": script
 
 @app.route("/download/<filename>")
 def download(filename):
