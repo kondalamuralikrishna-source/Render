@@ -1,20 +1,17 @@
 FROM python:3.10-slim
 
-# Install system dependencies (FFmpeg + ImageMagick + Fonts)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     ffmpeg \
     imagemagick \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
-# Fix ImageMagick security policy to allow MoviePy text rendering
-RUN if [ -f /etc/ImageMagick-6/policy.xml ]; then \
-        sed -i 's/<policy domain="path" rights="none" pattern="@\*" \/>/<!-- <policy domain="path" rights="none" pattern="@\*" \/> -->/' /etc/ImageMagick-6/policy.xml; \
-    fi
+# Override ImageMagick policy to allow text/image rendering
+RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*" \/>/<!-- <policy domain="path" rights="none" pattern="@\*" \/> -->/' /etc/ImageMagick-6/policy.xml
 
 WORKDIR /app
 
-# Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
