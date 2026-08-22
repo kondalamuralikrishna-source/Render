@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
+# Remove ImageMagick security policies that block MoviePy text generation
+RUN rm -f /etc/ImageMagick-*/policy.xml
+
 WORKDIR /app
 
 COPY requirements.txt .
