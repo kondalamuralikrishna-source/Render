@@ -1,28 +1,21 @@
-FROM python:3.10-slim
-ENV PIP_ROOT_USER_ACTION=ignore
+# Stage 1: Build & Dependencies
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends gcc build-essential
+
 COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
 
-RUN pip install --no-cache-dir -r requirements.txt
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    ffmpeg \
-    imagemagick \
-    fonts-liberation \
-    && rm -rf /var/lib/apt/lists/*
-
-# Disable restrictive ImageMagick security rules
-RUN rm -f /etc/ImageMagick-*/policy.xml
+# Stage 2: Minimal Production Image
+FROM python:3.11-slim AS runner
 
 WORKDIR /app
-
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
+# Copy installed dependencies from builder stage
+COPY --from=builder /root/.local /root/.local
 COPY . .
 
-EXPOSE 5000
+ENV PATH=/root/.local/bin:$PATH
+ENV PIP_ROOT_USER_ACTION=ignore
 
-# Run gunicorn with 1 worker and 120s timeout to survive low-RAM instances
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--threads", "1", "--timeout", "120", "app:app"]
+CMD ["python", "app.py"]
